@@ -1,0 +1,48 @@
+name: PowerShell validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse PowerShell script
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path '.\stalzone-server-blocker.ps1'),
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+
+          if ($errors.Count -gt 0) {
+            $errors | Format-List
+            throw "PowerShell syntax validation failed."
+          }
+
+          Write-Host "PowerShell syntax OK"
+
+      - name: Verify required release files
+        shell: powershell
+        run: |
+          $required = @(
+            'stalzone-server-blocker.ps1',
+            'Start-Blocker.cmd',
+            'README.md',
+            'LICENSE'
+          )
+
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) {
+              throw "Missing required file: $file"
+            }
+          }
